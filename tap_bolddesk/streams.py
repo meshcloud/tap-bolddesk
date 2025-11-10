@@ -236,7 +236,12 @@ class MessagesStream(BoldDeskStream):
         ),
         th.Property(
             "messageTag",
-            th.ArrayType(th.StringType),
+            th.ArrayType(
+                th.ObjectType(
+                    th.Property("id", th.IntegerType),
+                    th.Property("tagName", th.StringType)
+                )
+            ),
             description="Tags associated with the message"
         ),
         th.Property(
