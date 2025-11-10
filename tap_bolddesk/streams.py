@@ -32,15 +32,14 @@ class TicketsStream(BoldDeskStream):
         params = super().get_url_params(context, next_page_token)
         
         # Order by lastUpdatedOn descending for incremental sync
-        params["OrderBy"] = "lastUpdatedOn"
-        params["sort"] = "desc"
+        params["OrderBy"] = "lastUpdatedOn asc"
         
         # Build the Q parameter for filtering by updatedon
         starting_timestamp = self.get_starting_timestamp(context)
         if starting_timestamp:
             # Format: updatedon:{"from":"2020-11-30T18:30:00.000Z"}
             from_date = starting_timestamp.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-            params["Q"] = f'updatedon:{{"from":"{from_date}"}}'
+            params["Q"] = f'lastmodifiedon:{{"from":"{from_date}"}}'
         
         return params
     
