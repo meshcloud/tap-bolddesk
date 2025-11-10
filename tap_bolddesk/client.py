@@ -10,9 +10,28 @@ from memoization import cached
 from singer_sdk.helpers.jsonpath import extract_jsonpath
 from singer_sdk.streams import RESTStream
 from singer_sdk.authenticators import APIKeyAuthenticator
+from singer_sdk.pagination import BasePageNumberPaginator
 
 
 SCHEMAS_DIR = Path(__file__).parent / Path("./schemas")
+
+
+class BoldDeskPaginator(BasePageNumberPaginator):
+    """Custom paginator for BoldDesk API."""
+    
+    def has_more(self, response: requests.Response) -> bool:
+        """Check if there are more pages to fetch."""
+        data = response.json()
+        count = data.get("count", 0)
+        current_page = self.current_value
+        per_page = 100
+        
+        # Calculate if there are more pages
+        total_pages = (count + per_page - 1) // per_page  # Ceiling division
+        has_more = current_page < total_pages
+        
+        logging.info(f"Page {current_page}/{total_pages}, has_more: {has_more}")
+        return has_more
 
 
 class BoldDeskStream(RESTStream):
@@ -29,8 +48,7 @@ class BoldDeskStream(RESTStream):
     @property
     def authenticator(self) -> APIKeyAuthenticator:
         """Return a new authenticator object."""
-        return APIKeyAuthenticator.create_for_stream(
-            self,
+        return APIKeyAuthenticator(
             key="x-api-key",
             value=self.config.get("api_key"),
             location="header"
@@ -46,28 +64,15 @@ class BoldDeskStream(RESTStream):
         # headers["Private-Token"] = self.config.get("auth_token")
         return headers
 
-    def get_next_page_token(
-        self, response: requests.Response, previous_token: Optional[Any]
-    ) -> Optional[Any]:
-        """Return a token for identifying next page or None if no more pages."""
-        next_page_token = 2
-        if previous_token is None:
-            logging.info("Requesting the 2nd page now.")
-        else :
-            if previous_token < int(response.json().get("count", 0)) / 100:
-                next_page_token = int(previous_token) + 1
-            else :
-                next_page_token = None
-
-        logging.info("Next requesting page: " + str(next_page_token))
-
-        return next_page_token
+    def get_new_paginator(self) -> BoldDeskPaginator:
+        """Create a new paginator for BoldDesk API."""
+        return BoldDeskPaginator(start_value=1)
 
     def get_url_params(
         self, context: Optional[dict], next_page_token: Optional[Any]
     ) -> Dict[str, Any]:
         """Return a dictionary of values to be used in URL parameterization."""
-        params: dict = { }
+        params: dict = {}
         params["PerPage"] = 100
         params["RequiresCounts"] = True
         params["sort"] = "asc"

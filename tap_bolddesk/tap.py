@@ -8,11 +8,13 @@ from singer_sdk import typing as th  # JSON schema typing helpers
 from tap_bolddesk.streams import (
     BoldDeskStream,
     TicketsStream,
+    MessagesStream,
 )
 # TODO: Compile a list of custom stream types here
 #       OR rewrite discover_streams() below with your custom logic.
 STREAM_TYPES = [
     TicketsStream,
+    MessagesStream,
 ]
 
 class TapBoldDesk(Tap):
