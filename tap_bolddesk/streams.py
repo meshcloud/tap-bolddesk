@@ -17,6 +17,7 @@ class TicketsStream(BoldDeskStream):
     path = "/tickets"
     primary_keys = ["ticketId"]
     replication_key = None
+    replication_method = "FULL_TABLE"  # This stream does not support incremental replication
     
     def get_child_context(self, record: dict, context: Optional[dict]) -> dict:
         """Return a context dictionary for child streams."""
@@ -144,9 +145,15 @@ class MessagesStream(BoldDeskStream):
     
     primary_keys = ["id"]
     replication_key = None
+    replication_method = "FULL_TABLE"  # This stream does not support incremental replication
     
     # Ticket updates don't necessarily mean message updates
     ignore_parent_replication_keys = True
+    
+    # Don't partition state by ticketId to avoid storing state for each parent ticket.
+    # With a high number of tickets, partitioned state would grow excessively large.
+    # Instead, we rely on full table replication for messages.
+    state_partitioning_keys = []
     
     def __init__(self, *args, **kwargs):
         """Initialize the stream with a reusable HTML parser."""
