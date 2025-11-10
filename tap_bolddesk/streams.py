@@ -352,7 +352,12 @@ class MessagesStream(BoldDeskStream):
         return params
     
     def post_process(self, row: dict, context: Optional[dict]) -> dict:
-        """Process the row to add plaintext description."""
+        """Process the row to add plaintext description and ticketId from context."""
+        
+        # Add ticketId from parent context for correlation, it's not in the API response though so we fake it here
+        if context and "ticketId" in context:
+            row["ticketId"] = context["ticketId"]
+        
         # Extract HTML description and convert to plaintext
         description_html = row.get("description", "")
         
