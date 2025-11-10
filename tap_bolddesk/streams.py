@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Union, List, Iterable
 
 from singer_sdk import typing as th  # JSON Schema typing helpers
+from bs4 import BeautifulSoup
 
 from tap_bolddesk.client import BoldDeskStream
 
@@ -147,6 +148,11 @@ class MessagesStream(BoldDeskStream):
     # Ticket updates don't necessarily mean message updates
     ignore_parent_replication_keys = True
     
+    def __init__(self, *args, **kwargs):
+        """Initialize the stream with a reusable HTML parser."""
+        super().__init__(*args, **kwargs)
+        self._html_parser = BeautifulSoup("", "html.parser")
+    
     # Define schema based on BoldDesk API response structure
     schema = th.PropertiesList(
         th.Property(
@@ -163,6 +169,11 @@ class MessagesStream(BoldDeskStream):
             "description",
             th.StringType,
             description="The message content/description"
+        ),
+        th.Property(
+            "description_plaintext",
+            th.StringType,
+            description="Plaintext version of the message description (HTML stripped)"
         ),
         th.Property(
             "hasAttachment",
@@ -312,4 +323,21 @@ class MessagesStream(BoldDeskStream):
         params: dict = {}
         # Add any specific parameters for messages endpoint if required
         return params
+    
+    def post_process(self, row: dict, context: Optional[dict]) -> dict:
+        """Process the row to add plaintext description."""
+        # Extract HTML description and convert to plaintext
+        description_html = row.get("description", "")
+        
+        if description_html:
+            # Reuse the parser instance by resetting its content
+            self._html_parser.reset()
+            self._html_parser.append(BeautifulSoup(description_html, "html.parser"))
+            # Get text content, stripping extra whitespace
+            plaintext = self._html_parser.get_text(separator=" ", strip=True)
+            row["description_plaintext"] = plaintext
+        else:
+            row["description_plaintext"] = ""
+        
+        return row
 
