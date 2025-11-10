@@ -75,12 +75,8 @@ class BoldDeskStream(RESTStream):
         params: dict = {}
         params["PerPage"] = 100
         params["RequiresCounts"] = True
-        params["sort"] = "asc"
-        params["OrderBy"] = "ticketId"
         if next_page_token:
             params["Page"] = next_page_token
-        if self.config.get("start_date"):
-            params["Q"] = "createdon:{\"from\":\"" + self.config.get("start_date") + "\"}"
         return params
 
     def parse_response(self, response: requests.Response) -> Iterable[dict]:

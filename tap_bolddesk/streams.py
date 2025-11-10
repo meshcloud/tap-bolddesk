@@ -16,14 +16,34 @@ class TicketsStream(BoldDeskStream):
     name = "tickets"
     path = "/tickets"
     primary_keys = ["ticketId"]
-    replication_key = None
-    replication_method = "FULL_TABLE"  # This stream does not support incremental replication
+    replication_key = "lastUpdatedOn"
+    replication_method = "INCREMENTAL"
     
     def get_child_context(self, record: dict, context: Optional[dict]) -> dict:
         """Return a context dictionary for child streams."""
         return {
             "ticketId": record["ticketId"],
         }
+    
+    def get_url_params(
+        self, context: Optional[dict], next_page_token: Optional[Any]
+    ) -> Dict[str, Any]:
+        """Return URL params for tickets with incremental support."""
+        params = super().get_url_params(context, next_page_token)
+        
+        # Order by lastUpdatedOn descending for incremental sync
+        params["OrderBy"] = "lastUpdatedOn"
+        params["sort"] = "desc"
+        
+        # Build the Q parameter for filtering by updatedon
+        starting_timestamp = self.get_starting_timestamp(context)
+        if starting_timestamp:
+            # Format: updatedon:{"from":"2020-11-30T18:30:00.000Z"}
+            from_date = starting_timestamp.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+            params["Q"] = f'updatedon:{{"from":"{from_date}"}}'
+        
+        return params
+    
     # Optionally, you may also use `schema_filepath` in place of `schema`:
     # schema_filepath = SCHEMAS_DIR / "users.json"
     schema = th.PropertiesList(
@@ -64,6 +84,7 @@ class TicketsStream(BoldDeskStream):
             description="Count of how often an SLA was achieved for this ticket"
         ),
         th.Property("createdOn", th.StringType),
+        th.Property("lastUpdatedOn", th.StringType),
         th.Property(
             "group",
             th.ObjectType(
@@ -145,14 +166,13 @@ class MessagesStream(BoldDeskStream):
     
     primary_keys = ["id"]
     replication_key = None
-    replication_method = "FULL_TABLE"  # This stream does not support incremental replication
     
     # Ticket updates don't necessarily mean message updates
     ignore_parent_replication_keys = True
     
     # Don't partition state by ticketId to avoid storing state for each parent ticket.
     # With a high number of tickets, partitioned state would grow excessively large.
-    # Instead, we rely on full table replication for messages.
+    # Messages are synced via parent ticket relationship using incremental lastUpdatedOn.
     state_partitioning_keys = []
     
     def __init__(self, *args, **kwargs):
