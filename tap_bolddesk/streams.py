@@ -83,8 +83,9 @@ class TicketsStream(BoldDeskStream):
             th.IntegerType,
             description="Count of how often an SLA was achieved for this ticket"
         ),
-        th.Property("createdOn", th.StringType),
-        th.Property("lastUpdatedOn", th.StringType),
+        th.Property("createdOn", th.DateTimeType),
+        th.Property("lastUpdatedOn", th.DateTimeType),
+        th.Property("closedOn", th.DateTimeType),
         th.Property(
             "group",
             th.ObjectType(
@@ -209,12 +210,12 @@ class MessagesStream(BoldDeskStream):
         ),
         th.Property(
             "createdOn",
-            th.StringType,
+            th.DateTimeType,
             description="Message creation timestamp"
         ),
         th.Property(
             "updatedOn",
-            th.StringType,
+            th.DateTimeType,
             description="Message last update timestamp"
         ),
         th.Property(
